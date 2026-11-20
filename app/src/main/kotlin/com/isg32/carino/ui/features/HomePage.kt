@@ -28,13 +28,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +54,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,12 +63,14 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -72,6 +81,8 @@ import com.isg32.carino.data.CarinoViewModel
 import com.isg32.carino.data.HomeLayout
 import com.isg32.carino.data.Weather
 import com.isg32.carino.data.WeatherService
+import com.isg32.carino.ui.common.AppGlyph
+import com.isg32.carino.ui.components.VChip
 import com.isg32.carino.ui.components.VPillButton
 import com.isg32.carino.ui.theme.LiquidGlassTheme
 import com.isg32.carino.ui.theme.LocalVInk
@@ -81,6 +92,8 @@ import com.isg32.carino.ui.theme.VIcon
 import com.isg32.carino.ui.theme.VIconView
 import com.isg32.carino.ui.theme.VRadius
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassPill
+import com.isg32.carino.ui.theme.liquidGlassSurface
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -180,10 +193,41 @@ fun HomeScene(
     val settings by vm.settings.collectAsState()
     val appIndex by vm.appIndex.collectAsState()
     val visibleApps by vm.visibleApps.collectAsState()
+    val allApps by vm.apps.collectAsState()
     val nowMs by vm.nowMs.collectAsState()
     val battery by vm.battery.collectAsState()
     val weather by vm.weather.collectAsState()
     val dots by vm.dots.collectAsState()
+    val focusManager = LocalFocusManager.current
+
+    var searchQuery by remember { mutableStateOf("") }
+
+    if (searchQuery.isNotEmpty() && !previewOnly) {
+        BackHandler {
+            searchQuery = ""
+            focusManager.clearFocus()
+        }
+    }
+
+    val filteredApps = remember(searchQuery, visibleApps, allApps, settings.hidden, settings.hiddenFindByName) {
+        val q = searchQuery.trim().lowercase()
+        if (q.isEmpty()) {
+            emptyList()
+        } else {
+            val matched = visibleApps.filter { it.label.lowercase().contains(q) }
+            val hiddenExact = if (settings.hiddenFindByName) {
+                allApps.filter { it.key in settings.hidden && it.label.lowercase() == q }
+            } else {
+                emptyList()
+            }
+            (hiddenExact + matched)
+                .distinctBy { it.key }
+                .sortedWith(
+                    compareByDescending<AppEntry> { it.label.lowercase().startsWith(q) }
+                        .thenBy { it.label.lowercase() },
+                )
+        }
+    }
 
     val timeFmt = remember(settings.clock24) {
         SimpleDateFormat(if (settings.clock24) "HH:mm" else "hh:mm", Locale.getDefault())
@@ -215,41 +259,79 @@ fun HomeScene(
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 18.dp)
-            .padding(top = 6.dp, bottom = 86.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(top = 8.dp, bottom = 86.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Hero Stretched Condensed Glass Clock
-        Box(modifier = Modifier.fillMaxWidth()) {
-            HeroStretchedGlassClock(
-                timeText = timeFmt.format(Date(nowMs)),
-                onClick = {
-                    if (!previewOnly) vm.repo?.openNamedIntent("clock")
-                },
-            )
-            if (editing && !previewOnly) {
-                VPillButton(
-                    label = "Done",
-                    inverted = true,
-                    onClick = onDoneEditing,
-                    tag = "home_edit_done",
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 6.dp),
-                )
-            }
-        }
-
-        // 2. Wide Frosted LiquidGlass Weather Card
-        HomeWeatherGlassCard(
-            weather = weather,
-            battery = battery,
-            dateText = dateFmt.format(Date(nowMs)),
-            onClick = {
-                if (!previewOnly) onOpenWeatherSettings()
+        // 0. Top Glass-Morphism App Filter Search Bar
+        HomeTopGlassSearchBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onClear = {
+                searchQuery = ""
+                focusManager.clearFocus()
             },
+            onSubmit = {
+                if (settings.enterLaunches && filteredApps.isNotEmpty()) {
+                    vm.launchApp(filteredApps.first().key)
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                }
+            },
+            previewOnly = previewOnly,
         )
 
-        Spacer(Modifier.weight(1f))
+        if (searchQuery.isNotBlank() && !previewOnly) {
+            HomeFilteredAppsResults(
+                query = searchQuery,
+                apps = filteredApps,
+                vm = vm,
+                layout = layout,
+                showNewBadges = settings.newBadges,
+                onLaunch = { app, rect ->
+                    vm.launchApp(app.key, rect)
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                },
+                onLongPress = onAppMenu,
+                onClear = {
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                },
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            // 1. Hero Stretched Condensed Glass Clock
+            Box(modifier = Modifier.fillMaxWidth()) {
+                HeroStretchedGlassClock(
+                    timeText = timeFmt.format(Date(nowMs)),
+                    onClick = {
+                        if (!previewOnly) vm.repo?.openNamedIntent("clock")
+                    },
+                )
+                if (editing && !previewOnly) {
+                    VPillButton(
+                        label = "Done",
+                        inverted = true,
+                        onClick = onDoneEditing,
+                        tag = "home_edit_done",
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 6.dp),
+                    )
+                }
+            }
+
+            // 2. Wide Frosted LiquidGlass Weather Card
+            HomeWeatherGlassCard(
+                weather = weather,
+                battery = battery,
+                dateText = dateFmt.format(Date(nowMs)),
+                onClick = {
+                    if (!previewOnly) onOpenWeatherSettings()
+                },
+            )
+
+            Spacer(Modifier.weight(1f))
 
         // 3. Dual Side-by-Side 2x2 Frosted LiquidGlass Folder Cards
         Row(
@@ -411,12 +493,259 @@ fun HomeScene(
             }
         }
 
-        // 4. Bottom Smoked LiquidGlass Search Capsule (G ... Mic + Lens)
-        HomeGlassSearchPill(
-            onSearch = { if (!previewOnly) onOpenSearch() },
-            onVoice = { if (!previewOnly) onOpenSearch() },
-            onLens = { if (!previewOnly) vm.repo?.openNamedIntent("camera") },
-        )
+            // 4. Bottom Smoked LiquidGlass Search Capsule (G ... Mic + Lens)
+            HomeGlassSearchPill(
+                onSearch = { if (!previewOnly) onOpenSearch() },
+                onVoice = { if (!previewOnly) onOpenSearch() },
+                onLens = { if (!previewOnly) vm.repo?.openNamedIntent("camera") },
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeTopGlassSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit,
+    onSubmit: () -> Unit,
+    previewOnly: Boolean,
+) {
+    val ink = LocalVInk.current
+    val pillShape = RoundedCornerShape(VRadius.pill)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .liquidGlassPill(shape = pillShape, smoked = true)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                VIconView(
+                    icon = VIcon.search,
+                    size = 17.dp,
+                    strokeWidth = 2.0f,
+                    color = ink.copy(alpha = 0.84f),
+                    contentDescription = "Search installed apps",
+                )
+                if (previewOnly) {
+                    Text(
+                        text = "Search apps…",
+                        style = VText.inter(15f, weight = 500).copy(color = ink.copy(alpha = 0.65f)),
+                        maxLines = 1,
+                    )
+                } else {
+                    BasicTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        singleLine = true,
+                        textStyle = VText.inter(15f, weight = 500).copy(color = ink),
+                        cursorBrush = SolidColor(ink),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("home_top_search_input"),
+                        decorationBox = { inner ->
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = "Search apps…",
+                                    style = VText.inter(15f, weight = 500).copy(color = ink.copy(alpha = 0.65f)),
+                                    maxLines = 1,
+                                )
+                            }
+                            inner()
+                        },
+                    )
+                }
+                if (query.isNotEmpty() && !previewOnly) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(ink.copy(alpha = 0.18f))
+                            .clickable(role = Role.Button, onClick = onClear)
+                            .testTag("home_top_search_clear"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        VIconView(
+                            icon = VIcon.close,
+                            size = 12.dp,
+                            strokeWidth = 2.1f,
+                            color = ink,
+                            contentDescription = "Clear search",
+                        )
+                    }
+                }
+            }
+        }
+
+        if (query.isNotEmpty() && !previewOnly) {
+            Box(
+                modifier = Modifier
+                    .height(48.dp)
+                    .liquidGlassPill(shape = pillShape, smoked = true)
+                    .clickable(role = Role.Button, onClick = onClear)
+                    .padding(horizontal = 14.dp)
+                    .testTag("home_top_search_cancel"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Cancel",
+                    style = VText.inter(14f, weight = 600).copy(color = ink),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HomeFilteredAppsResults(
+    query: String,
+    apps: List<AppEntry>,
+    vm: CarinoViewModel,
+    layout: HomeLayout,
+    showNewBadges: Boolean,
+    onLaunch: (AppEntry, android.graphics.Rect?) -> Unit,
+    onLongPress: (AppEntry) -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val ink = LocalVInk.current
+    val haptic = LocalHapticFeedback.current
+
+    if (apps.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .liquidGlassSurface(
+                        shape = RoundedCornerShape(28.dp),
+                        elevated = false,
+                        showSpecularSheen = true,
+                    )
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    VIconView(
+                        icon = VIcon.search,
+                        size = 28.dp,
+                        strokeWidth = 1.6f,
+                        color = ink.copy(alpha = 0.55f),
+                    )
+                    Text(
+                        text = "No apps match \"${query.trim()}\"",
+                        style = VText.rowTitle.copy(color = ink),
+                    )
+                    Text(
+                        text = "Try a different app name or clear the search.",
+                        style = VText.secondary.copy(color = ink.copy(alpha = 0.65f)),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    VPillButton(
+                        label = "Clear filter",
+                        onClick = onClear,
+                        tag = "home_search_empty_clear",
+                    )
+                }
+            }
+        }
+    } else {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .liquidGlassSurface(
+                    shape = RoundedCornerShape(28.dp),
+                    elevated = false,
+                    showSpecularSheen = true,
+                ),
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .testTag("home_filtered_apps_list"),
+            ) {
+                items(apps, key = { it.key }) { app ->
+                    var boundsRect: android.graphics.Rect? = null
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onGloballyPositioned { coords ->
+                                    val b = coords.boundsInWindow()
+                                    boundsRect = android.graphics.Rect(
+                                        b.left.roundToInt(),
+                                        b.top.roundToInt(),
+                                        b.right.roundToInt(),
+                                        b.bottom.roundToInt(),
+                                    )
+                                }
+                                .combinedClickable(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onLaunch(app, boundsRect)
+                                    },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onLongPress(app)
+                                    },
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppGlyph(app = app, vm = vm, size = 42.dp, style = layout.icons, blur = true)
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                text = app.label,
+                                style = VText.inter(15.5f, weight = 500).copy(color = ink),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (showNewBadges && app.isNew()) {
+                                VChip(label = "New")
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            VIconView(
+                                icon = VIcon.chevron,
+                                size = 15.dp,
+                                strokeWidth = 1.6f,
+                                color = ink.copy(alpha = 0.32f),
+                            )
+                        }
+                        if (app.key != apps.last().key) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 72.dp, end = 16.dp)
+                                    .height(0.6.dp)
+                                    .background(ink.copy(alpha = 0.14f)),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -496,7 +825,7 @@ private fun HeroStretchedGlassClock(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(178.dp)
+            .height(154.dp)
             .testTag("home_clock")
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -505,11 +834,11 @@ private fun HeroStretchedGlassClock(
             ),
         contentAlignment = Alignment.BottomCenter,
     ) {
-        // Back frosted glass plate positioned across the lower ~66% of the hero numerals
+        // Back frosted glass plate positioned across the lower ~64% of the hero numerals
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(114.dp)
+                .height(98.dp)
                 .homeSmokedGlass(shape = plateShape, isDark = tokens.isDark, fillAlpha = 0.14f),
         )
 
@@ -517,7 +846,7 @@ private fun HeroStretchedGlassClock(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 14.dp),
+                .padding(bottom = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -527,7 +856,7 @@ private fun HeroStretchedGlassClock(
                 style = TextStyle(
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Black,
-                    fontSize = 104.sp,
+                    fontSize = 94.sp,
                     letterSpacing = (-3).sp,
                     brush = Brush.verticalGradient(
                         0.0f to ink.copy(alpha = 0.98f),
@@ -538,7 +867,7 @@ private fun HeroStretchedGlassClock(
                 ),
                 modifier = Modifier.graphicsLayer {
                     scaleX = 0.80f
-                    scaleY = 1.56f
+                    scaleY = 1.50f
                 },
             )
         }
@@ -547,7 +876,7 @@ private fun HeroStretchedGlassClock(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(114.dp)
+                .height(98.dp)
                 .clip(plateShape)
                 .background(
                     Brush.verticalGradient(

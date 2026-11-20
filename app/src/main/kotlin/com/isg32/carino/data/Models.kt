@@ -10,6 +10,7 @@ data class AppEntry(
     val installedAt: Long,
     val work: Boolean = false,
     val paused: Boolean = false,
+    val category: String = "Other",
 ) {
     val section: String
         get() {
@@ -175,7 +176,7 @@ data class WidgetProviderInfo(
 @Serializable
 data class CarinoSettings(
     val onboarded: Boolean = false,
-    val appsView: AppsView = AppsView.list,
+    val appsView: AppsView = AppsView.grid,
     val newBadges: Boolean = true,
     val scrubberHaptics: Boolean = true,
     val searchWeb: Boolean = true,

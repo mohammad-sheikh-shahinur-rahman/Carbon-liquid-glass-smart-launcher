@@ -129,6 +129,7 @@ enum class VIcon(val svgPath: String) {
             "M4 15v2.5A2.5 2.5 0 0 0 6.5 20H9M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M18 17.5h.01",
     ),
     umbrella("M12 3v1M4 13a8 8 0 0 1 16 0zM12 13v6a2 2 0 0 1-4 0"),
+    moreVert("M12 5.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2M12 11a1 1 0 1 0 0 2a1 1 0 1 0 0-2M12 16.5a1 1 0 1 0 0 2a1 1 0 1 0 0-2"),
     close("M6 6l12 12M18 6L6 18");
 
     val path: Path

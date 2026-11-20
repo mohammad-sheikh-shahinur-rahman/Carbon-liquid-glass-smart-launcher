@@ -238,19 +238,77 @@ class LauncherRepository(private val activity: Activity) {
                 } catch (_: PackageManager.NameNotFoundException) {
                     0L
                 }
+                val pkgName = info.componentName.packageName
+                val appLabel = info.label.toString()
+                val category = classifyApp(
+                    androidCategory = info.applicationInfo.category,
+                    pkg = pkgName,
+                    label = appLabel,
+                )
                 out.add(
                     AppEntry(
                         key = keyOf(info),
-                        pkg = info.componentName.packageName,
-                        label = info.label.toString(),
+                        pkg = pkgName,
+                        label = appLabel,
                         installedAt = installed,
                         work = work,
                         paused = paused,
+                        category = category,
                     ),
                 )
             }
         }
         out.sortedBy { it.label.lowercase() }
+    }
+
+    private fun classifyApp(androidCategory: Int, pkg: String, label: String): String {
+        val lowerPkg = pkg.lowercase()
+        val lowerLabel = label.lowercase()
+        val combined = "$lowerPkg $lowerLabel"
+
+        if (listOf("bkash", "nagad", "rocket", "bank", "wallet", "pay", "upay", "cash", "finance", "credit")
+                .any { combined.contains(it) }
+        ) {
+            return "Finance"
+        }
+
+        if (androidCategory == android.content.pm.ApplicationInfo.CATEGORY_SOCIAL ||
+            listOf(
+                "whatsapp", "messenger", "telegram", "signal", "discord", "facebook", "lite",
+                "messaging", "mms", "sms", "dialer", "phone", "contacts", "mail", "gmail",
+                "chat", "brilliant", "viber", "imo", "skype", "slack", "teams", "zoom",
+            ).any { combined.contains(it) }
+        ) {
+            return "Communication"
+        }
+
+        if (androidCategory == android.content.pm.ApplicationInfo.CATEGORY_GAME ||
+            androidCategory == android.content.pm.ApplicationInfo.CATEGORY_VIDEO ||
+            androidCategory == android.content.pm.ApplicationInfo.CATEGORY_AUDIO ||
+            androidCategory == android.content.pm.ApplicationInfo.CATEGORY_IMAGE ||
+            listOf(
+                "youtube", "netflix", "spotify", "tiktok", "music", "gallery", "photos",
+                "camera", "video", "player", "retouch", "editor", "game", "cinema", "tv",
+                "podcast", "instagram", "snapchat", "reddit", "pinterest",
+            ).any { combined.contains(it) }
+        ) {
+            return "Entertainment"
+        }
+
+        if (androidCategory == android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY ||
+            androidCategory == android.content.pm.ApplicationInfo.CATEGORY_MAPS ||
+            androidCategory == android.content.pm.ApplicationInfo.CATEGORY_ACCESSIBILITY ||
+            listOf(
+                "calculator", "calendar", "clock", "compass", "chrome", "browser", "files",
+                "documents", "drive", "settings", "authenticator", "assistant", "keyboard",
+                "type", "maps", "translate", "notes", "keep", "recorder", "weather", "gpt",
+                "chatgpt", "care", "tool", "utility", "scanner", "pdf", "vpn", "store", "vending",
+            ).any { combined.contains(it) }
+        ) {
+            return "Tools"
+        }
+
+        return "Other"
     }
 
     suspend fun loadIcon(key: String, size: Int = 160, mono: Boolean = false): Bitmap? =
