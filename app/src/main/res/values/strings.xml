@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Carbon</string>
+    <string name="lock_service_label">Carbon: double-tap to lock</string>
+    <string name="lock_service_description">Lets Carbon lock the screen when you double-tap an empty part of Home. It does nothing else, and it cannot read what is on your screen.</string>
+    <string name="notification_service_label">Carbon notification dots</string>
+    <string name="carino_tagline">A Liquid Glass home screen with a calm App Library, widgets, and custom layouts.</string>
+    <string name="developer_name">Carbon Launcher</string>
+    <string name="developer_subtitle">Liquid Glass Android Home Experience</string>
+    <string name="about_footnote">Built with Liquid Glass aesthetics, zero telemetry, and native Android launcher performance.</string>
+</resources>

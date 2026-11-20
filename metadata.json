@@ -1,0 +1,8 @@
+{
+  "name": "Carbon",
+  "description": "A Liquid Glass Android launcher with a clean App Library, widgets, and custom layouts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
