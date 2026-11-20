@@ -101,10 +101,54 @@ fun WallpaperPaletteCanvas(
         }
         // Subtle diagonal liquid-crystal light caustics for glossy depth behind frosted glass
         if (!palette.light && palette.blobs.isNotEmpty()) {
+            if (palette.baseInt == VWallpapers.carbon.baseInt) {
+                // Moody architectural monolithic tower silhouette & vertical glass reflection pillars
+                val cx = size.width * 0.5f
+                val spireW = size.width * 0.012f
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color(0x55222A33),
+                            Color(0x9912171E),
+                        ),
+                        startY = size.height * 0.14f,
+                        endY = size.height * 0.42f,
+                    ),
+                    topLeft = Offset(cx - spireW / 2f, size.height * 0.14f),
+                    size = androidx.compose.ui.geometry.Size(spireW, size.height * 0.28f),
+                )
+                val crownW = size.width * 0.36f
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0x66161C24), Color(0xCC0D1117)),
+                        startY = size.height * 0.37f,
+                        endY = size.height,
+                    ),
+                    topLeft = Offset(cx - crownW / 2f, size.height * 0.37f),
+                    size = androidx.compose.ui.geometry.Size(crownW, size.height * 0.63f),
+                )
+                val towerW = size.width * 0.52f
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xAA0C1016),
+                            Color(0x55364454),
+                            Color(0x88151C24),
+                            Color(0x444C5E70),
+                            Color(0xAA0B0F14),
+                        ),
+                        startX = cx - towerW / 2f,
+                        endX = cx + towerW / 2f,
+                    ),
+                    topLeft = Offset(cx - towerW / 2f, size.height * 0.42f),
+                    size = androidx.compose.ui.geometry.Size(towerW, size.height * 0.58f),
+                )
+            }
             drawRect(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.08f),
+                        Color.White.copy(alpha = 0.09f),
                         Color.Transparent,
                         Color(0x2284D4DE),
                         Color.Transparent,

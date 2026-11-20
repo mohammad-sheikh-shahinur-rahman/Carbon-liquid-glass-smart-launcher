@@ -113,7 +113,18 @@ object VWallpapers {
 
     val white = VWallpaperPalette(0xFFFFFFFF.toInt(), emptyList(), light = true)
 
+    val carbon = VWallpaperPalette(
+        0xFF10141A.toInt(),
+        listOf(
+            VWallpaperBlob(0xFF475666.toInt(), 0.05f, -0.35f, 0.85f),
+            VWallpaperBlob(0xFF2B3540.toInt(), -0.65f, 0.15f, 0.80f),
+            VWallpaperBlob(0xFF566778.toInt(), 0.45f, 0.25f, 0.72f),
+            VWallpaperBlob(0xFF1F2730.toInt(), 0.0f, 0.85f, 0.90f),
+        ),
+    )
+
     val all: Map<String, VWallpaperPalette> = linkedMapOf(
+        "carbon" to carbon,
         "liquid" to liquid,
         "night" to night,
         "dune" to dune,

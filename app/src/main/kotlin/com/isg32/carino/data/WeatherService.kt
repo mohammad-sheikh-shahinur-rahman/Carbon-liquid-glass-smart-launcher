@@ -16,16 +16,27 @@ object WeatherService {
         val unit = if (fahrenheit) "fahrenheit" else "celsius"
         val url = "https://api.open-meteo.com/v1/forecast" +
             "?latitude=${place.lat}&longitude=${place.lon}" +
-            "&current=temperature_2m,weather_code&temperature_unit=$unit"
+            "&current=temperature_2m,weather_code" +
+            "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+            "&forecast_days=1&timezone=auto&temperature_unit=$unit"
         val body = getText(url)
         val json = JSONObject(body)
         val current = json.getJSONObject("current")
+        val daily = json.optJSONObject("daily")
+        val high = daily?.optJSONArray("temperature_2m_max")?.optDouble(0)?.takeIf { !it.isNaN() }
+        val low = daily?.optJSONArray("temperature_2m_min")?.optDouble(0)?.takeIf { !it.isNaN() }
+        val precip = daily?.optJSONArray("precipitation_probability_max")?.let { arr ->
+            if (arr.length() > 0 && !arr.isNull(0)) arr.optInt(0) else null
+        }
         Weather(
             temp = current.getDouble("temperature_2m"),
             code = current.getInt("weather_code"),
             fahrenheit = fahrenheit,
             at = System.currentTimeMillis(),
             place = place.name,
+            high = high,
+            low = low,
+            precipChance = precip,
         )
     }
 

@@ -123,6 +123,12 @@ enum class VIcon(val svgPath: String) {
     back("M15 6l-6 6l6 6"),
     check("M5 12l5 5l9-10"),
     search("M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M16 16l5 5"),
+    mic("M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"),
+    lens(
+        "M4 9V6.5A2.5 2.5 0 0 1 6.5 4H9M15 4h2.5A2.5 2.5 0 0 1 20 6.5V9" +
+            "M4 15v2.5A2.5 2.5 0 0 0 6.5 20H9M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M18 17.5h.01",
+    ),
+    umbrella("M12 3v1M4 13a8 8 0 0 1 16 0zM12 13v6a2 2 0 0 1-4 0"),
     close("M6 6l12 12M18 6L6 18");
 
     val path: Path

@@ -317,6 +317,17 @@ private fun CarinoShell(vm: CarinoViewModel) {
                             showVaultFolder = true
                         }
                     },
+                    onOpenSearch = { vm.openSearch() },
+                    onOpenWeatherSettings = {
+                        initialSettingsRoute = SettingsScreen.Weather
+                        vm.openSettings()
+                    },
+                    onOpenApps = {
+                        scope.launch {
+                            vm.setTab(1)
+                            pagerState.animateScrollToPage(1, animationSpec = tween(VMotion.standardMs))
+                        }
+                    },
                 )
                 1 -> AppsPage(
                     vm = vm,

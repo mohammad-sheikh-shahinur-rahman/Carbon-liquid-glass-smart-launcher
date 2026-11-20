@@ -48,7 +48,7 @@ data class WallpaperRef(
 data class HomeLayout(
     val id: String,
     val name: String,
-    val wallpaper: WallpaperRef = WallpaperRef.builtin("liquid"),
+    val wallpaper: WallpaperRef = WallpaperRef.builtin("carbon"),
     val dim: Double = 0.0,
     val blur: Double = 0.0,
     val ink: InkMode = InkMode.white,
@@ -106,6 +106,9 @@ data class Weather(
     val fahrenheit: Boolean,
     val at: Long,
     val place: String,
+    val high: Double? = null,
+    val low: Double? = null,
+    val precipChance: Int? = null,
 )
 
 data class BatteryState(
