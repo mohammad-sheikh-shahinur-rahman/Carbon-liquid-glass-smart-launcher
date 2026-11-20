@@ -43,6 +43,7 @@ import com.isg32.carino.ui.theme.VInkProvider
 import com.isg32.carino.ui.theme.VRadius
 import com.isg32.carino.ui.theme.VSpace
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassSurface
 
 enum class VOutline { solid, dashed }
 
@@ -56,21 +57,23 @@ fun VSurface(
 ) {
     val pal = LocalVPalette.current
     val shape = RoundedCornerShape(radius)
-    val bgMod = if (color != null) {
-        Modifier.background(color)
+    val mod = if (color == null && borderColor == null) {
+        modifier.liquidGlassSurface(
+            shape = shape,
+            elevated = false,
+            showSpecularSheen = true,
+        )
     } else {
-        Modifier.background(pal.liquidSurfaceBrush)
-    }
-    val borderMod = if (borderColor != null) {
-        Modifier.border(VSpace.hairline, borderColor, shape)
-    } else {
-        Modifier.border(VSpace.hairline, pal.liquidBorderBrush, shape)
+        val bgMod = if (color != null) Modifier.background(color) else Modifier.background(pal.liquidSurfaceBrush)
+        val borderMod = if (borderColor != null) {
+            Modifier.border(VSpace.hairline, borderColor, shape)
+        } else {
+            Modifier.border(VSpace.hairline, pal.liquidBorderBrush, shape)
+        }
+        modifier.clip(shape).then(bgMod).then(borderMod)
     }
     Box(
-        modifier = modifier
-            .clip(shape)
-            .then(bgMod)
-            .then(borderMod),
+        modifier = mod,
         content = content,
     )
 }

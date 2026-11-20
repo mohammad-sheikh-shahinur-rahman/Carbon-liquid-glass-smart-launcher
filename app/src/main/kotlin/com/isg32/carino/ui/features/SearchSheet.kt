@@ -67,6 +67,7 @@ import com.isg32.carino.ui.theme.VIconView
 import com.isg32.carino.ui.theme.VRadius
 import com.isg32.carino.ui.theme.VSpace
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassPill
 import java.net.URLEncoder
 
 data class SystemSettingEntry(
@@ -243,7 +244,6 @@ fun SearchSheet(
             Spacer(Modifier.height(14.dp))
 
             if (mode == SearchMode.apps) {
-                val pal = com.isg32.carino.ui.theme.LocalVPalette.current
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -252,10 +252,8 @@ fun SearchSheet(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(VRadius.pill))
-                            .background(pal.liquidSearchBrush)
-                            .border(1.3.dp, pal.liquidBorderBrush, RoundedCornerShape(VRadius.pill))
+                            .height(52.dp)
+                            .liquidGlassPill(shape = RoundedCornerShape(VRadius.pill))
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {

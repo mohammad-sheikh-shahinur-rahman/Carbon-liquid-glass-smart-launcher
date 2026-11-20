@@ -1,5 +1,10 @@
 package com.isg32.carino.ui.features
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -52,6 +59,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.isg32.carino.data.AppEntry
@@ -60,21 +68,27 @@ import com.isg32.carino.data.CarinoViewModel
 import com.isg32.carino.ui.common.AppGlyph
 import com.isg32.carino.ui.common.AppTile
 import com.isg32.carino.ui.components.VChip
-import com.isg32.carino.ui.components.VIconButton
+import com.isg32.carino.ui.theme.LiquidGlassTheme
 import com.isg32.carino.ui.theme.LocalVInk
-import com.isg32.carino.ui.theme.LocalVPalette
-import com.isg32.carino.ui.theme.VColors
 import com.isg32.carino.ui.theme.VIcon
 import com.isg32.carino.ui.theme.VIconView
 import com.isg32.carino.ui.theme.VRadius
 import com.isg32.carino.ui.theme.VSpace
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassPill
+import com.isg32.carino.ui.theme.liquidGlassSurface
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private sealed interface AppsListItem {
-    data class Header(val title: String, val paused: Boolean = false) : AppsListItem
-    data class RowApp(val app: AppEntry, val showDivider: Boolean) : AppsListItem
+private data class AppSectionGroup(
+    val title: String,
+    val apps: List<AppEntry>,
+    val paused: Boolean = false,
+)
+
+private sealed interface AppsGridItem {
+    data class Header(val title: String, val paused: Boolean = false) : AppsGridItem
+    data class Tile(val app: AppEntry) : AppsGridItem
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -86,7 +100,7 @@ fun AppsPage(
     onOpenSettings: () -> Unit,
 ) {
     val ink = LocalVInk.current
-    val pal = LocalVPalette.current
+    val tokens = LiquidGlassTheme.tokens
     val apps by vm.visibleApps.collectAsState()
     val settings by vm.settings.collectAsState()
     val layout by vm.activeLayout.collectAsState()
@@ -105,38 +119,47 @@ fun AppsPage(
     val work = remember(filteredApps) { filteredApps.filter { it.work } }
     val workPaused = remember(work) { work.any { it.paused } }
 
-    val items = remember(personal, work, workPaused, query) {
+    // Sectioned glass groups for List mode
+    val listSections = remember(personal, work, workPaused, query, filteredApps) {
         buildList {
             if (query.isNotBlank()) {
-                filteredApps.forEachIndexed { idx, app ->
-                    add(AppsListItem.RowApp(app, showDivider = idx < filteredApps.lastIndex))
+                if (filteredApps.isNotEmpty()) {
+                    add(AppSectionGroup(title = "Results", apps = filteredApps))
                 }
             } else {
-                var currentSection: String? = null
-                personal.forEachIndexed { idx, app ->
-                    val sec = app.section
-                    if (sec != currentSection) {
-                        currentSection = sec
-                        add(AppsListItem.Header(sec))
-                    }
-                    val nextSameSec = personal.getOrNull(idx + 1)?.section == sec
-                    add(AppsListItem.RowApp(app, showDivider = nextSameSec))
+                personal.groupBy { it.section }.forEach { (sec, list) ->
+                    add(AppSectionGroup(title = sec, apps = list))
                 }
                 if (work.isNotEmpty()) {
-                    add(AppsListItem.Header("Work", paused = workPaused))
-                    work.forEachIndexed { idx, app ->
-                        add(AppsListItem.RowApp(app, showDivider = idx < work.lastIndex))
-                    }
+                    add(AppSectionGroup(title = "Work", apps = work, paused = workPaused))
                 }
             }
         }
     }
 
+    // Flattened items for Grid mode
+    val gridItems = remember(listSections) {
+        buildList {
+            listSections.forEach { sec ->
+                add(AppsGridItem.Header(sec.title, sec.paused))
+                sec.apps.forEach { add(AppsGridItem.Tile(it)) }
+            }
+        }
+    }
+
     val alphabet = remember { ('A'..'Z').map { it.toString() } + "#" }
-    val sectionIndexByLetter = remember(items) {
+    val listSectionIndexByLetter = remember(listSections) {
         buildMap {
-            items.forEachIndexed { idx, item ->
-                if (item is AppsListItem.Header) {
+            listSections.forEachIndexed { idx, sec ->
+                val key = if (sec.title == "Work") "W" else sec.title
+                putIfAbsent(key, idx)
+            }
+        }
+    }
+    val gridSectionIndexByLetter = remember(gridItems) {
+        buildMap {
+            gridItems.forEachIndexed { idx, item ->
+                if (item is AppsGridItem.Header) {
                     val key = if (item.title == "Work") "W" else item.title
                     putIfAbsent(key, idx)
                 }
@@ -153,21 +176,19 @@ fun AppsPage(
             .fillMaxSize()
             .statusBarsPadding(),
     ) {
-        // Liquid Glass App Library Search Capsule + Cancel / Actions
+        // Liquid Glass App Library Search Capsule + Frosted Glass Orbs / Cancel
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(VRadius.pill))
-                    .background(pal.liquidSearchBrush)
-                    .border(1.3.dp, pal.liquidBorderBrush, RoundedCornerShape(VRadius.pill))
+                    .height(52.dp)
+                    .liquidGlassPill(shape = RoundedCornerShape(VRadius.pill))
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
@@ -179,8 +200,8 @@ fun AppsPage(
                     VIconView(
                         icon = VIcon.search,
                         size = 18.dp,
-                        strokeWidth = 1.9f,
-                        color = ink.copy(alpha = 0.85f),
+                        strokeWidth = 2.0f,
+                        color = ink.copy(alpha = 0.88f),
                     )
                     BasicTextField(
                         value = query,
@@ -195,7 +216,7 @@ fun AppsPage(
                             if (query.isEmpty()) {
                                 Text(
                                     text = "App Library",
-                                    style = VText.inter(16f, weight = 500).copy(color = ink.copy(alpha = 0.68f)),
+                                    style = VText.inter(16f, weight = 500).copy(color = ink.copy(alpha = 0.72f)),
                                 )
                             }
                             inner()
@@ -206,31 +227,36 @@ fun AppsPage(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(ink.copy(alpha = 0.16f))
+                                .background(ink.copy(alpha = 0.20f))
                                 .clickable { query = "" },
                             contentAlignment = Alignment.Center,
                         ) {
-                            VIconView(VIcon.close, size = 13.dp, strokeWidth = 2.0f, color = ink)
+                            VIconView(VIcon.close, size = 13.dp, strokeWidth = 2.1f, color = ink)
                         }
                     }
                 }
             }
 
             if (query.isNotEmpty()) {
-                Text(
-                    text = "Cancel",
-                    style = VText.inter(15f, weight = 600).copy(color = ink),
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(VRadius.pill))
+                        .height(48.dp)
+                        .liquidGlassPill(shape = RoundedCornerShape(VRadius.pill))
                         .clickable {
                             query = ""
                             focusManager.clearFocus()
                         }
-                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                        .padding(horizontal = 14.dp)
                         .testTag("apps_search_cancel"),
-                )
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = VText.inter(14f, weight = 600).copy(color = ink),
+                    )
+                }
             } else {
-                VIconButton(
+                LiquidOrbButton(
                     icon = if (settings.appsView == AppsView.list) VIcon.apps else VIcon.list,
                     contentDescription = "Switch view",
                     onClick = {
@@ -238,18 +264,12 @@ fun AppsPage(
                             s.copy(appsView = if (s.appsView == AppsView.list) AppsView.grid else AppsView.list)
                         }
                     },
-                    outlined = true,
-                    size = 44.dp,
-                    iconSize = 18.dp,
                     tag = "apps_toggle_view",
                 )
-                VIconButton(
+                LiquidOrbButton(
                     icon = VIcon.gear,
                     contentDescription = "Settings",
                     onClick = onOpenSettings,
-                    outlined = true,
-                    size = 44.dp,
-                    iconSize = 18.dp,
                     tag = "apps_settings_button",
                 )
             }
@@ -261,28 +281,39 @@ fun AppsPage(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 20.dp,
-                        end = 40.dp,
+                        start = 16.dp,
+                        end = 42.dp,
                         top = 4.dp,
-                        bottom = VSpace.tabBarClearance,
+                        bottom = VSpace.tabBarClearance + 8.dp,
                     ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    items(items, key = { item ->
-                        when (item) {
-                            is AppsListItem.Header -> "h_${item.title}"
-                            is AppsListItem.RowApp -> item.app.key
-                        }
-                    }) { item ->
-                        when (item) {
-                            is AppsListItem.Header -> SectionRow(item.title, item.paused)
-                            is AppsListItem.RowApp -> AppListRow(
-                                app = item.app,
-                                vm = vm,
-                                showNew = settings.newBadges && item.app.isNew(),
-                                showDivider = item.showDivider,
-                                iconStyle = layout.icons,
-                                onLongPress = { onAppMenu(item.app) },
-                            )
+                    items(listSections, key = { "sec_${it.title}" }) { section ->
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SectionPillHeader(title = section.title, paused = section.paused)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .liquidGlassSurface(
+                                        shape = RoundedCornerShape(26.dp),
+                                        elevated = false,
+                                        borderWidth = 1.dp,
+                                        showSpecularSheen = true,
+                                    ),
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    section.apps.forEachIndexed { idx, app ->
+                                        AppListRow(
+                                            app = app,
+                                            vm = vm,
+                                            showNew = settings.newBadges && app.isNew(),
+                                            showDivider = idx < section.apps.lastIndex,
+                                            iconStyle = layout.icons,
+                                            onLongPress = { onAppMenu(app) },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -292,32 +323,32 @@ fun AppsPage(
                     state = gridState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 18.dp,
-                        end = 40.dp,
+                        start = 16.dp,
+                        end = 42.dp,
                         top = 4.dp,
-                        bottom = VSpace.tabBarClearance,
+                        bottom = VSpace.tabBarClearance + 8.dp,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(
-                        items = items,
+                        items = gridItems,
                         span = { item ->
                             when (item) {
-                                is AppsListItem.Header -> GridItemSpan(maxLineSpan)
-                                is AppsListItem.RowApp -> GridItemSpan(1)
+                                is AppsGridItem.Header -> GridItemSpan(maxLineSpan)
+                                is AppsGridItem.Tile -> GridItemSpan(1)
                             }
                         },
                         key = { item ->
                             when (item) {
-                                is AppsListItem.Header -> "gh_${item.title}"
-                                is AppsListItem.RowApp -> item.app.key
+                                is AppsGridItem.Header -> "gh_${item.title}"
+                                is AppsGridItem.Tile -> item.app.key
                             }
                         },
                     ) { item ->
                         when (item) {
-                            is AppsListItem.Header -> SectionRow(item.title, item.paused)
-                            is AppsListItem.RowApp -> Box(
+                            is AppsGridItem.Header -> SectionPillHeader(item.title, item.paused)
+                            is AppsGridItem.Tile -> Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .alpha(if (item.app.paused) 0.45f else 1f),
@@ -326,8 +357,9 @@ fun AppsPage(
                                 AppTile(
                                     app = item.app,
                                     vm = vm,
-                                    size = 52.dp,
+                                    size = 54.dp,
                                     style = layout.icons,
+                                    blur = true,
                                     onLongPress = { onAppMenu(item.app) },
                                 )
                             }
@@ -336,11 +368,16 @@ fun AppsPage(
                 }
             }
 
-            // Liquid Glass A-Z Scrubber with circular frosted lens highlight
-            if (query.isEmpty() && sectionIndexByLetter.isNotEmpty()) {
+            // Right-edge vertical Liquid Glass A-Z Scrubber Rail
+            val activeIndexMap = if (settings.appsView == AppsView.list) {
+                listSectionIndexByLetter
+            } else {
+                gridSectionIndexByLetter
+            }
+            if (query.isEmpty() && activeIndexMap.isNotEmpty()) {
                 LiquidLetterScrubber(
                     letters = alphabet,
-                    availableLetters = sectionIndexByLetter.keys,
+                    availableLetters = activeIndexMap.keys,
                     activeLetter = activeLetter,
                     onLetter = { letter ->
                         if (letter != activeLetter) {
@@ -348,7 +385,7 @@ fun AppsPage(
                             if (settings.scrubberHaptics) {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             }
-                            val targetIdx = sectionIndexByLetter[letter]
+                            val targetIdx = activeIndexMap[letter]
                             if (targetIdx != null) {
                                 scope.launch {
                                     if (settings.appsView == AppsView.list) {
@@ -363,23 +400,26 @@ fun AppsPage(
                     onRelease = { activeLetter = null },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(end = 6.dp, bottom = VSpace.tabBarClearance / 2),
+                        .padding(end = 7.dp, top = 4.dp, bottom = VSpace.tabBarClearance - 20.dp),
                 )
             }
 
-            if (activeLetter != null) {
+            // Floating Liquid Glass Loupe Sphere when scrubbing
+            androidx.compose.animation.AnimatedVisibility(
+                visible = activeLetter != null,
+                enter = fadeIn() + scaleIn(initialScale = 0.8f),
+                exit = fadeOut() + scaleOut(targetScale = 0.85f),
+                modifier = Modifier.align(Alignment.Center),
+            ) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(pal.liquidSearchBrush)
-                        .border(1.3.dp, pal.liquidBorderBrush, CircleShape),
+                        .size(76.dp)
+                        .liquidGlassPill(shape = CircleShape, smoked = true),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = activeLetter!!,
-                        style = VText.doto(32f, weight = 700).copy(color = ink),
+                        text = activeLetter.orEmpty(),
+                        style = VText.doto(34f, weight = 700).copy(color = ink),
                     )
                 }
             }
@@ -388,19 +428,55 @@ fun AppsPage(
 }
 
 @Composable
-private fun SectionRow(title: String, paused: Boolean) {
+private fun LiquidOrbButton(
+    icon: VIcon,
+    contentDescription: String,
+    onClick: () -> Unit,
+    tag: String,
+) {
     val ink = LocalVInk.current
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .testTag(tag)
+            .liquidGlassPill(shape = CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        VIconView(
+            icon = icon,
+            size = 18.dp,
+            strokeWidth = 1.8f,
+            color = ink,
+            contentDescription = contentDescription,
+        )
+    }
+}
+
+@Composable
+private fun SectionPillHeader(title: String, paused: Boolean) {
+    val ink = LocalVInk.current
+    val tokens = LiquidGlassTheme.tokens
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 14.dp, bottom = 4.dp),
+            .padding(start = 4.dp, top = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = title.uppercase(),
-            style = VText.eyebrow.copy(color = ink.copy(alpha = 0.62f)),
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(VRadius.pill))
+                .background(tokens.surfaceRegular)
+                .border(0.9.dp, tokens.borderBrush, RoundedCornerShape(VRadius.pill))
+                .padding(horizontal = 10.dp, vertical = 3.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = title.uppercase(),
+                style = VText.inter(11f, weight = 700, letterSpacing = 0.8f).copy(color = ink.copy(alpha = 0.90f)),
+            )
+        }
         if (paused) {
             VChip(label = "Paused")
         }
@@ -438,7 +514,6 @@ private fun AppListRow(
                         b.bottom.roundToInt(),
                     )
                 }
-                .clip(RoundedCornerShape(16.dp))
                 .combinedClickable(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -449,29 +524,43 @@ private fun AppListRow(
                         onLongPress()
                     },
                 )
-                .padding(vertical = 10.dp, horizontal = 2.dp),
+                .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AppGlyph(app = app, vm = vm, size = 46.dp, style = iconStyle)
-            Spacer(Modifier.width(16.dp))
+            AppGlyph(app = app, vm = vm, size = 44.dp, style = iconStyle, blur = true)
+            Spacer(Modifier.width(14.dp))
             Text(
                 text = app.label,
-                style = VText.inter(16f, weight = 500).copy(color = ink),
+                style = VText.inter(15.5f, weight = 500).copy(color = ink),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             if (showNew) {
                 VChip(label = "New")
+                Spacer(Modifier.width(6.dp))
             }
+            VIconView(
+                icon = VIcon.chevron,
+                size = 15.dp,
+                strokeWidth = 1.6f,
+                color = ink.copy(alpha = 0.30f),
+            )
         }
         if (showDivider) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 62.dp)
+                    .padding(start = 72.dp, end = 16.dp)
                     .height(0.6.dp)
-                    .background(ink.copy(alpha = 0.16f)),
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                ink.copy(alpha = 0.22f),
+                                ink.copy(alpha = 0.08f),
+                            ),
+                        ),
+                    ),
             )
         }
     }
@@ -487,12 +576,17 @@ private fun LiquidLetterScrubber(
     modifier: Modifier = Modifier,
 ) {
     val ink = LocalVInk.current
-    val pal = LocalVPalette.current
+    val tokens = LiquidGlassTheme.tokens
+    val railShape = RoundedCornerShape(VRadius.pill)
 
     Column(
         modifier = modifier
-            .width(28.dp)
-            .fillMaxHeight(0.84f)
+            .width(24.dp)
+            .fillMaxHeight(0.86f)
+            .clip(railShape)
+            .background(if (tokens.isDark) Color(0x2E161224) else Color(0x52FFFFFF))
+            .border(0.85.dp, tokens.borderBrush, railShape)
+            .padding(vertical = 6.dp)
             .pointerInput(letters) {
                 detectTapGestures { offset ->
                     val i = ((offset.y / size.height.coerceAtLeast(1)) * letters.size)
@@ -529,12 +623,12 @@ private fun LiquidLetterScrubber(
             val hasApps = letter in availableLetters
             Box(
                 modifier = Modifier
-                    .size(if (isSelected) 24.dp else 18.dp)
+                    .size(if (isSelected) 20.dp else 16.dp)
                     .let {
                         if (isSelected) {
                             it.clip(CircleShape)
-                                .background(pal.liquidSearchBrush)
-                                .border(1.dp, pal.liquidBorderBrush, CircleShape)
+                                .background(tokens.lensHighlight)
+                                .border(1.dp, tokens.borderBrush, CircleShape)
                         } else {
                             it
                         }
@@ -544,13 +638,13 @@ private fun LiquidLetterScrubber(
                 Text(
                     text = letter,
                     style = VText.inter(
-                        size = if (isSelected) 11f else 9.5f,
+                        size = if (isSelected) 10.5f else 9f,
                         weight = if (isSelected || hasApps) 700 else 400,
                     ).copy(
                         color = when {
                             isSelected -> ink
-                            hasApps -> ink.copy(alpha = 0.85f)
-                            else -> ink.copy(alpha = 0.35f)
+                            hasApps -> ink.copy(alpha = 0.88f)
+                            else -> ink.copy(alpha = 0.34f)
                         },
                     ),
                 )

@@ -64,6 +64,8 @@ import com.isg32.carino.ui.theme.VIcon
 import com.isg32.carino.ui.theme.VIconView
 import com.isg32.carino.ui.theme.VSpace
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassPill
+import com.isg32.carino.ui.theme.liquidGlassSurface
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -231,13 +233,19 @@ fun HomeScene(
             }
         }
         if (glanceParts.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = glanceParts.joinToString("  ·  "),
-                style = VText.secondary.copy(color = ink.copy(alpha = 0.72f)),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Spacer(Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .liquidGlassPill(shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp))
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+            ) {
+                Text(
+                    text = glanceParts.joinToString("  ·  "),
+                    style = VText.secondary.copy(color = ink.copy(alpha = 0.88f)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))
@@ -302,64 +310,75 @@ fun HomeScene(
             }
         }
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(20.dp))
 
-        // Dock row (shared in Home & Customise preview; ShellScreen places persistent dock above VTabBar)
+        // Frosted LiquidGlass Dock Tray
         val dock = layout.dockRow
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            for (c in 0 until layout.columns) {
-                val slotIdx = layout.favSlots + c
-                val key = dock.getOrNull(c)
-                val app = key?.let { appIndex[it] }
-                HomeSlotItem(
-                    slotIndex = slotIdx,
-                    app = app,
-                    layout = layout,
-                    vm = vm,
-                    editing = editing,
-                    previewOnly = previewOnly,
-                    showLabel = false,
-                    isDragging = draggingSlot == slotIdx,
-                    isHovered = hoverSlot == slotIdx && draggingSlot >= 0 && draggingSlot != slotIdx,
-                    dragOffset = if (draggingSlot == slotIdx) dragOffset else Offset.Zero,
-                    onBounds = { rect -> slotBounds[slotIdx] = rect },
-                    onTapEmpty = { onPickSlot(true, c) },
-                    onRemove = { vm.setDock(c, null) },
-                    onLongPress = {
-                        if (!editing && app != null && !previewOnly) onAppMenu(app)
-                    },
-                    onDragStart = {
-                        draggingSlot = slotIdx
-                        dragOffset = Offset.Zero
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    onDrag = { delta ->
-                        dragOffset += delta
-                        val currentRect = slotBounds[slotIdx]
-                        if (currentRect != null) {
-                            val center = currentRect.center + dragOffset
-                            hoverSlot = slotBounds.entries.firstOrNull { (_, rRect) ->
-                                rRect.contains(center)
-                            }?.key ?: -1
-                        }
-                    },
-                    onDragEnd = {
-                        if (draggingSlot >= 0 && hoverSlot >= 0 && draggingSlot != hoverSlot) {
-                            vm.swapSlots(draggingSlot, hoverSlot)
-                        }
-                        draggingSlot = -1
-                        hoverSlot = -1
-                        dragOffset = Offset.Zero
-                    },
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .liquidGlassSurface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(30.dp),
+                    elevated = true,
+                    showSpecularSheen = true,
                 )
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                for (c in 0 until layout.columns) {
+                    val slotIdx = layout.favSlots + c
+                    val key = dock.getOrNull(c)
+                    val app = key?.let { appIndex[it] }
+                    HomeSlotItem(
+                        slotIndex = slotIdx,
+                        app = app,
+                        layout = layout,
+                        vm = vm,
+                        editing = editing,
+                        previewOnly = previewOnly,
+                        showLabel = false,
+                        isDragging = draggingSlot == slotIdx,
+                        isHovered = hoverSlot == slotIdx && draggingSlot >= 0 && draggingSlot != slotIdx,
+                        dragOffset = if (draggingSlot == slotIdx) dragOffset else Offset.Zero,
+                        onBounds = { rect -> slotBounds[slotIdx] = rect },
+                        onTapEmpty = { onPickSlot(true, c) },
+                        onRemove = { vm.setDock(c, null) },
+                        onLongPress = {
+                            if (!editing && app != null && !previewOnly) onAppMenu(app)
+                        },
+                        onDragStart = {
+                            draggingSlot = slotIdx
+                            dragOffset = Offset.Zero
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        onDrag = { delta ->
+                            dragOffset += delta
+                            val currentRect = slotBounds[slotIdx]
+                            if (currentRect != null) {
+                                val center = currentRect.center + dragOffset
+                                hoverSlot = slotBounds.entries.firstOrNull { (_, rRect) ->
+                                    rRect.contains(center)
+                                }?.key ?: -1
+                            }
+                        },
+                        onDragEnd = {
+                            if (draggingSlot >= 0 && hoverSlot >= 0 && draggingSlot != hoverSlot) {
+                                vm.swapSlots(draggingSlot, hoverSlot)
+                            }
+                            draggingSlot = -1
+                            hoverSlot = -1
+                            dragOffset = Offset.Zero
+                        },
+                    )
+                }
             }
         }
 
         // Reserve space for floating VTabBar
-        Spacer(Modifier.height(82.dp))
+        Spacer(Modifier.height(92.dp))
     }
 }
 

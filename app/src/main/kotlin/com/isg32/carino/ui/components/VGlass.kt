@@ -38,6 +38,7 @@ import com.isg32.carino.ui.theme.VIconView
 import com.isg32.carino.ui.theme.VRadius
 import com.isg32.carino.ui.theme.VSpace
 import com.isg32.carino.ui.theme.VText
+import com.isg32.carino.ui.theme.liquidGlassPill
 import com.isg32.carino.ui.theme.liquidGlassSurface
 
 @Composable
@@ -93,7 +94,7 @@ data class VTabItem(
 )
 
 /**
- * Floating Liquid Glass pill tab bar with a luminous frosted sliding indicator tracking pager fraction 1:1.
+ * Floating Liquid Glass pill tab bar with a luminous refractive glass lens indicator tracking pager fraction 1:1.
  */
 @Composable
 fun VTabBar(
@@ -104,16 +105,17 @@ fun VTabBar(
     modifier: Modifier = Modifier,
 ) {
     val pal = LocalVPalette.current
+    val tokens = LiquidGlassTheme.tokens
     val ink = pal.ink
-    val inverted = VColors.onColor(ink)
     val clampedPos = pagePosition.coerceIn(0f, (tabs.size - 1).coerceAtLeast(0).toFloat())
+    val pillShape = RoundedCornerShape(VRadius.pill)
 
-    VGlass(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .height(60.dp),
-        radius = VRadius.pill,
+            .padding(horizontal = 20.dp)
+            .height(62.dp)
+            .liquidGlassPill(shape = pillShape, smoked = true),
     ) {
         BoxWithConstraints(
             modifier = Modifier
@@ -121,33 +123,61 @@ fun VTabBar(
                 .padding(5.dp),
         ) {
             val slotW = maxWidth / tabs.size.coerceAtLeast(1)
+            val lensFill = if (tokens.isDark) {
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.34f),
+                        Color.White.copy(alpha = 0.18f),
+                        Color(0x338EDCE0),
+                    ),
+                )
+            } else {
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.94f),
+                        Color.White.copy(alpha = 0.72f),
+                    ),
+                )
+            }
+            val lensBorder = if (tokens.isDark) {
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.85f),
+                        Color.White.copy(alpha = 0.24f),
+                        Color(0xAA9CE3E8),
+                    ),
+                )
+            } else {
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.98f),
+                        Color.Black.copy(alpha = 0.14f),
+                        Color.White.copy(alpha = 0.80f),
+                    ),
+                )
+            }
+
+            // Refractive Liquid Glass active lens indicator
             Box(
                 modifier = Modifier
                     .offset(x = slotW * clampedPos)
                     .width(slotW)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(VRadius.pill))
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                ink.copy(alpha = 0.96f),
-                                ink.copy(alpha = 0.84f),
-                            ),
-                        ),
-                    )
-                    .border(VSpace.hairline, VColors.white.copy(alpha = 0.55f), RoundedCornerShape(VRadius.pill)),
+                    .clip(pillShape)
+                    .background(lensFill)
+                    .border(1.2.dp, lensBorder, pillShape),
             )
             Row(modifier = Modifier.fillMaxSize()) {
                 tabs.forEachIndexed { index, item ->
                     val distance = kotlin.math.abs(clampedPos - index).coerceIn(0f, 1f)
                     val active = distance < 0.5f
-                    val fg = if (active) inverted else ink.copy(alpha = 0.84f)
+                    val fg = if (active) ink else ink.copy(alpha = 0.68f)
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .testTag(item.tag)
-                            .clip(RoundedCornerShape(VRadius.pill))
+                            .clip(pillShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -162,7 +192,7 @@ fun VTabBar(
                             VIconView(
                                 icon = item.icon,
                                 size = 17.dp,
-                                strokeWidth = if (active) 2.0f else 1.5f,
+                                strokeWidth = if (active) 2.1f else 1.5f,
                                 color = fg,
                             )
                             Text(

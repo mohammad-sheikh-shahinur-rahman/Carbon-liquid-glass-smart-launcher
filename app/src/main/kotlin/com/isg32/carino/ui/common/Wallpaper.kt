@@ -87,12 +87,32 @@ fun WallpaperPaletteCanvas(
             val r = (b.radius * longer).coerceAtLeast(1f)
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(b.color, b.color.copy(alpha = 0f)),
+                    colors = listOf(
+                        b.color.copy(alpha = 0.88f),
+                        b.color.copy(alpha = 0.34f),
+                        b.color.copy(alpha = 0f),
+                    ),
                     center = Offset(cx, cy),
                     radius = r,
                 ),
                 radius = r,
                 center = Offset(cx, cy),
+            )
+        }
+        // Subtle diagonal liquid-crystal light caustics for glossy depth behind frosted glass
+        if (!palette.light && palette.blobs.isNotEmpty()) {
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.08f),
+                        Color.Transparent,
+                        Color(0x2284D4DE),
+                        Color.Transparent,
+                        Color(0x1AC8A4E0),
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height),
+                ),
             )
         }
     }

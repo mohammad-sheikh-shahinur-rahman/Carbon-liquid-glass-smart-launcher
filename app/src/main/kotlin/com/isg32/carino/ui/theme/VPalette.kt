@@ -27,7 +27,7 @@ data class VPalette(
     val glassBar: Color get() = scaled(if (isDark) VColors.glassBar else VColors.glassBarLight)
     val glassCard: Color get() = scaled(if (isDark) VColors.glassCard else VColors.glassCardLight)
     val glassSheet: Color get() = if (isDark) VColors.glassSheet else VColors.glassSheetLight
-    val veil: Color get() = if (isDark) VColors.black.copy(alpha = 0.22f) else VColors.white.copy(alpha = 0.34f)
+    val veil: Color get() = if (isDark) Color(0x18100C1C) else VColors.white.copy(alpha = 0.24f)
     val popupScrim: Color get() = if (isDark) VColors.popupScrim else VColors.popupScrimLight
 
     val liquidSurfaceBrush: androidx.compose.ui.graphics.Brush

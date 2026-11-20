@@ -487,7 +487,7 @@ fun Modifier.liquidGlassBlur(
 
 /**
  * Styles any composable with a soft LiquidGlass surface: clipped shape, semi-transparent directional
- * frost gradient, subtle top specular sheen, and luminous glass rim border.
+ * frost gradient, subtle top specular sheen, and luminous refractive glass rim border.
  */
 fun Modifier.liquidGlassSurface(
     shape: Shape = RoundedCornerShape(VRadius.card),
@@ -498,19 +498,34 @@ fun Modifier.liquidGlassSurface(
     val tokens = LiquidGlassTheme.tokens
     val fillBrush = if (elevated) tokens.elevatedSurfaceBrush else tokens.surfaceBrush
     val strokeWidth = borderWidth ?: tokens.borderWidth
+    val darkBacking = if (tokens.isDark) Color(0x28120F1E) else Color(0x18FFFFFF)
 
     this
         .clip(shape)
+        .background(darkBacking)
         .background(fillBrush)
         .then(
             if (showSpecularSheen) {
                 Modifier.drawWithContent {
                     drawContent()
-                    // Soft top-edge glass reflection
+                    // Luminous top-edge glass meniscus reflection
                     drawRect(
                         brush = tokens.specularSheenBrush,
                         topLeft = Offset.Zero,
-                        size = size.copy(height = size.height * 0.42f),
+                        size = size.copy(height = size.height * 0.44f),
+                    )
+                    // Subtle bottom internal refraction bounce
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = if (tokens.isDark) 0.08f else 0.24f),
+                            ),
+                            startY = size.height * 0.72f,
+                            endY = size.height,
+                        ),
+                        topLeft = Offset(0f, size.height * 0.72f),
+                        size = size.copy(height = size.height * 0.28f),
                     )
                 }
             } else {
@@ -518,6 +533,62 @@ fun Modifier.liquidGlassSurface(
             },
         )
         .border(strokeWidth, tokens.borderBrush, shape)
+}
+
+/**
+ * High-refraction LiquidGlass capsule style designed for floating bars, search pills, and lenses.
+ */
+fun Modifier.liquidGlassPill(
+    shape: Shape = RoundedCornerShape(VRadius.pill),
+    smoked: Boolean = false,
+): Modifier = composed {
+    val tokens = LiquidGlassTheme.tokens
+    val backing = when {
+        smoked && tokens.isDark -> Color(0x66161326)
+        smoked && !tokens.isDark -> Color(0x88F4F2FA)
+        tokens.isDark -> Color(0x361A162B)
+        else -> Color(0x45FFFFFF)
+    }
+    val rimBrush = if (tokens.isDark) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.72f),
+                Color(0x44D6C4F0),
+                Color.White.copy(alpha = 0.16f),
+                Color(0x558EDCE0),
+                Color.White.copy(alpha = 0.54f),
+            ),
+        )
+    } else {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.96f),
+                Color(0x28564A72),
+                Color.White.copy(alpha = 0.75f),
+            ),
+        )
+    }
+
+    this
+        .clip(shape)
+        .background(backing)
+        .background(tokens.searchBarBrush)
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = if (tokens.isDark) 0.22f else 0.50f),
+                        Color.Transparent,
+                    ),
+                    startY = 0f,
+                    endY = size.height * 0.52f,
+                ),
+                topLeft = Offset.Zero,
+                size = size.copy(height = size.height * 0.52f),
+            )
+        }
+        .border(1.25.dp, rimBrush, shape)
 }
 
 /**

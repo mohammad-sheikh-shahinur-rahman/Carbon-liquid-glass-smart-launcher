@@ -8,7 +8,7 @@ object VSpace {
     val titleGutter = 20.dp
     val cardPadding = 16.dp
     val cardGap = 12.dp
-    val tabBarClearance = 104.dp
+    val tabBarClearance = 124.dp
     val rowVertical = 14.dp
     val rowHorizontal = 16.dp
 }

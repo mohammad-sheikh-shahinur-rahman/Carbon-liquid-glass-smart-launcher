@@ -50,12 +50,13 @@ data class VWallpaperPalette(
 
 object VWallpapers {
     val liquid = VWallpaperPalette(
-        0xFF3E354B.toInt(),
+        0xFF211C32.toInt(),
         listOf(
-            VWallpaperBlob(0xFF8E6E95.toInt(), -0.65f, -0.75f, 0.85f),
-            VWallpaperBlob(0xFF564A72.toInt(), 0.75f, -0.25f, 0.78f),
-            VWallpaperBlob(0xFF4F8E92.toInt(), 0.45f, 0.95f, 0.90f),
-            VWallpaperBlob(0xFF6B5C7A.toInt(), -0.55f, 0.55f, 0.75f),
+            VWallpaperBlob(0xFFB384B8.toInt(), -0.68f, -0.78f, 0.92f),
+            VWallpaperBlob(0xFF6B5996.toInt(), 0.78f, -0.32f, 0.88f),
+            VWallpaperBlob(0xFF47A6AA.toInt(), 0.55f, 0.88f, 0.98f),
+            VWallpaperBlob(0xFF7D6799.toInt(), -0.58f, 0.42f, 0.84f),
+            VWallpaperBlob(0xFF3E688C.toInt(), -0.15f, 0.95f, 0.80f),
         ),
     )
 

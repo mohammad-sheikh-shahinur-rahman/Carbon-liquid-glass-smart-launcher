@@ -21,6 +21,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -338,6 +340,28 @@ private fun CarinoShell(vm: CarinoViewModel) {
                 )
             }
         }
+
+        // Soft progressive bottom fade so scrolling items dissolve cleanly beneath the floating LiquidGlass dock
+        val dockScrimColor = if (com.isg32.carino.ui.theme.LocalVPalette.current.isDark) {
+            androidx.compose.ui.graphics.Color(0xC2141122)
+        } else {
+            androidx.compose.ui.graphics.Color(0xCCECEAF2)
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(118.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(
+                            androidx.compose.ui.graphics.Color.Transparent,
+                            dockScrimColor.copy(alpha = 0.55f),
+                            dockScrimColor,
+                        ),
+                    ),
+                ),
+        )
 
         // Persistent floating glass tab bar
         VTabBar(

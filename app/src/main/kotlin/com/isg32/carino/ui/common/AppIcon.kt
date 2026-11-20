@@ -71,14 +71,26 @@ fun AppGlyph(
 
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
         if (colored && bitmap != null) {
-            Image(
-                bitmap = bitmap!!.asImageBitmap(),
-                contentDescription = app.label,
-                contentScale = ContentScale.Fit,
+            Box(
                 modifier = Modifier
                     .size(size)
-                    .clip(CircleShape),
-            )
+                    .clip(CircleShape)
+                    .border(
+                        width = 0.85.dp,
+                        brush = pal.liquidBorderBrush,
+                        shape = CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    bitmap = bitmap!!.asImageBitmap(),
+                    contentDescription = app.label,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(size)
+                        .clip(CircleShape),
+                )
+            }
         } else {
             val fg = if (lifted) paper else ink
             val circleFill = when {
